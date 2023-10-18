@@ -1,118 +1,448 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
+import { useState, ChangeEvent, FormEvent } from "react";
+import { Inter } from "next/font/google";
+import axios from "axios";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
-export default function Home() {
+interface iCat {
+  id: number;
+  name: string;
+  breed: string;
+  color: string;
+  owner: string;
+  address: string;
+  stray: boolean;
+}
+
+interface iHomeProps {
+  cats: iCat[];
+}
+
+const Home: React.FC<iHomeProps> = ({ cats }) => {
+  const [search, setSearch] = useState<string>("");
+  const [catList, setCatList] = useState<iCat[] | []>(cats);
+  const [deleteCats, setDeleteCats] = useState<iCat[] | []>([]);
+  const [addCat, setAddCat] = useState({
+    name: "",
+    breed: "",
+    color: "",
+    address: "",
+    owner: "",
+    stray: false,
+  });
+  const [editCat, setEditCat] = useState({
+    name: "",
+    breed: "",
+    color: "",
+    address: "",
+    owner: "",
+    stray: false,
+  });
+
+  const clearDisable = search.length > 0;
+  const deleteDisable = deleteCats.length > 0;
+
+  const getCats = async () => {
+    const response = await axios.get(process.env.NEXT_PUBLIC_CAT_API!);
+    setCatList(response.data.cats);
+  };
+
+  const searchCat = async (catQuery: string) => {
+    const url = `${process.env.NEXT_PUBLIC_CAT_API!}?name=${search}`;
+    const response = await axios.get(url);
+    setCatList(response.data.cats);
+  };
+
+  const handleNewCat = (e: ChangeEvent<HTMLInputElement>, property: string) => {
+    let newValue = e.target.value;
+    setAddCat((prevData) => ({
+      ...prevData,
+      [property]: newValue,
+    }));
+  };
+
+  const handleNewCatBool = (
+    e: ChangeEvent<HTMLSelectElement>,
+    property: string
+  ) => {
+    let newValue: string | boolean = e.target.value;
+    console.log(typeof e.target.value);
+    if (newValue === "true") {
+      newValue = true;
+    } else {
+      newValue = false;
+    }
+    setAddCat((prevData) => ({
+      ...prevData,
+      [property]: newValue,
+    }));
+  };
+
+  const postCat = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(
+        process.env.NEXT_PUBLIC_CAT_API!,
+        addCat
+      );
+      if (response.status === 200) {
+        await getCats();
+        if (document) {
+          (document.getElementById("add_new") as HTMLFormElement).close();
+        }
+      } else {
+        console.error("Failed to create a new item:", response.status);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      throw error; // Propagate the error to the calling code
+    }
+  };
+
+  const handleEditCat = (
+    e: ChangeEvent<HTMLInputElement>,
+    property: string
+  ) => {
+    let newValue = e.target.value;
+    setEditCat((prevData) => ({
+      ...prevData,
+      [property]: newValue,
+    }));
+  };
+
+  const handleEditCatBool = (
+    e: ChangeEvent<HTMLSelectElement>,
+    property: string
+  ) => {
+    let newValue: string | boolean = e.target.value;
+    if (newValue === "true") {
+      newValue = true;
+    } else {
+      newValue = false;
+    }
+    setEditCat((prevData) => ({
+      ...prevData,
+      [property]: newValue,
+    }));
+  };
+
+  const putCat = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await axios.put(
+        process.env.NEXT_PUBLIC_CAT_API!,
+        editCat
+      );
+      if (response.status === 200) {
+        await getCats();
+        if (document) {
+          (document.getElementById("edit") as HTMLFormElement).close();
+        }
+      } else {
+        console.error("Failed to update a item:", response.status);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      throw error; // Propagate the error to the calling code
+    }
+  };
+
+  const handleDeleteList = (cat: iCat) => {
+    const inList = deleteCats.some((cats) => cats.id === cat.id);
+    if (inList) {
+      const removedCat = deleteCats.filter((cats) => cats.id !== cat.id);
+      setDeleteCats(removedCat);
+    } else {
+      setDeleteCats([...deleteCats, cat]);
+    }
+  };
+
+  const deleteSelectedCats = async () => {
+    try {
+      const response = await axios.delete(process.env.NEXT_PUBLIC_CAT_API!, {
+        data: { toBeDeleted: deleteCats }, // Send the array of cats in the request body
+      });
+      if (response.status === 200) {
+        await getCats();
+        if (document) {
+          (document.getElementById("edit") as HTMLFormElement).close();
+        }
+      } else {
+        console.error("Failed to delete a item:", response.status);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      throw error; // Propagate the error to the calling code
+    }
+  };
+
   return (
     <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
+      className={`flex justify-center min-h-screen m-3  ${inter.className}`}
     >
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div className="w-[60%]">
+        <h1 className="pt-6 text-3xl">Cat Tracker</h1>
+        <div id="search-bar" className="flex justify-between py-12 ml-auto">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              if (document) {
+                (
+                  document.getElementById("add_new") as HTMLFormElement
+                ).showModal();
+              }
+            }}
           >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+            Add New
+          </button>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Type here"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input input-bordered w-full max-w-xl"
             />
-          </a>
+            <button
+              className="btn btn-primary"
+              disabled={!clearDisable}
+              onClick={() => searchCat(search)}
+            >
+              SEARCH
+            </button>
+            <button
+              className="btn"
+              disabled={!clearDisable}
+              onClick={() => {
+                setSearch("");
+                getCats();
+              }}
+            >
+              clear
+            </button>
+          </div>
+        </div>
+        <div id="data-table">
+          <div className="overflow-x-auto border-2 border-black rounded-xl">
+            <table className="table table-zebra ">
+              {/* head */}
+              <thead>
+                <tr className="hover">
+                  <th></th>
+                  <th>id</th>
+                  <th>Name</th>
+                  <th>Breed</th>
+                  <th>Color</th>
+                  <th>Owner</th>
+                  <th>Address</th>
+                  <th>Stray</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* row 1 */}
+                {catList.map((cat) => (
+                  <tr className="hover" key={cat.id}>
+                    <td>
+                      <label>
+                        <input
+                          type="checkbox"
+                          className="checkbox"
+                          checked={deleteCats.some(
+                            (cats) => cats.id === cat.id
+                          )}
+                          onChange={() => handleDeleteList(cat)}
+                        />
+                      </label>
+                    </td>
+                    <td>{cat.id}</td>
+                    <td>{cat.name}</td>
+                    <td>{cat.breed}</td>
+                    <td>{cat.color}</td>
+                    <td>{cat.owner}</td>
+                    <td>{cat.address}</td>
+                    <td>{cat.stray.toString()}</td>
+                    <td>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          if (document) {
+                            (
+                              document.getElementById("edit") as HTMLFormElement
+                            ).showModal();
+                          }
+                          setEditCat(cat);
+                        }}
+                      >
+                        edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex">
+            <p className="mt-3">Cat Watchers LLC 2023</p>
+            <button
+              className="btn mt-3 ml-auto"
+              disabled={!deleteDisable}
+              onClick={deleteSelectedCats}
+            >
+              delete
+            </button>
+          </div>
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <dialog id="add_new" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-xl mb-5">Add New Cat</h3>
+          <form onSubmit={postCat}>
+            <input
+              type="text"
+              placeholder="Enter Name here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              onChange={(e) => handleNewCat(e, "name")}
+            />
+            <input
+              type="text"
+              placeholder="Enter Breed here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              onChange={(e) => handleNewCat(e, "breed")}
+            />
+            <input
+              type="text"
+              placeholder="Enter Color here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              onChange={(e) => handleNewCat(e, "color")}
+            />
+            <input
+              type="text"
+              placeholder="Enter Owner here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              onChange={(e) => handleNewCat(e, "owner")}
+            />
+            <input
+              type="text"
+              placeholder="Enter Address here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              onChange={(e) => handleNewCat(e, "address")}
+            />
+            <select
+              className="select input-bordered w-full max-w-xl"
+              onChange={(e) => handleNewCatBool(e, "stray")}
+              value={addCat.address} // Bind it to the value in your state
+            >
+              <option disabled value="" hidden>
+                Is this cat a stray?
+              </option>
+              <option value={"true"}>Yes</option>
+              <option value={"false"}>No</option>
+            </select>
+            <div className="modal-action">
+              <button className="btn btn-primary" type="submit">
+                submit
+              </button>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  if (document) {
+                    (
+                      document.getElementById("add_new") as HTMLFormElement
+                    ).close();
+                  }
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+      <dialog id="edit" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-xl mb-5">Edit Cat</h3>
+          <form onSubmit={putCat}>
+            <input
+              type="text"
+              placeholder="Edit Name here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              value={editCat.name}
+              onChange={(e) => handleEditCat(e, "name")}
+            />
+            <input
+              type="text"
+              placeholder="Edit Breed here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              value={editCat.breed}
+              onChange={(e) => handleEditCat(e, "breed")}
+            />
+            <input
+              type="text"
+              placeholder="Edit Color here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              value={editCat.color}
+              onChange={(e) => handleEditCat(e, "color")}
+            />
+            <input
+              type="text"
+              placeholder="Edit Owner here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              value={editCat.owner}
+              onChange={(e) => handleEditCat(e, "owner")}
+            />
+            <input
+              type="text"
+              placeholder="Edit Address here..."
+              className="input input-bordered w-full max-w-xl mb-3"
+              value={editCat.address}
+              onChange={(e) => handleEditCat(e, "address")}
+            />
+            <select
+              className="select input-bordered w-full max-w-xl"
+              value={editCat.stray.toString()} // Bind it to the value in your state
+              onChange={(e) => handleEditCatBool(e, "stray")}
+            >
+              <option disabled value="" hidden>
+                Is this cat a stray?
+              </option>
+              <option value={"true"}>Yes</option>
+              <option value={"false"}>No</option>
+            </select>
+            <div className="modal-action">
+              <button className="btn btn-primary" type="submit">
+                submit
+              </button>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  if (document) {
+                    (
+                      document.getElementById("edit") as HTMLFormElement
+                    ).close();
+                  }
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
     </main>
-  )
-}
+  );
+};
+
+export default Home;
+
+export const getServerSideProps = async () => {
+  const api = process.env.NEXT_PUBLIC_CAT_API;
+  const response = await axios.get(api!);
+  const data = response.data.cats;
+  return {
+    props: {
+      cats: data,
+    },
+  };
+};
